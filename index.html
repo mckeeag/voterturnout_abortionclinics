@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Florida Abortion Clinics and Voter Turnout by County</title>
+    	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.0/dist/leaflet.css"/>
+	    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noto+Sans" rel="stylesheet">
+	    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lora" rel="stylesheet">
+
+    <style>
+ 	html, body, #map { width: 100%; height: 100%; margin: 0; background: #fff; }
+     body {
+			margin: 0;
+			padding: 0;
+			background: "whitesmoke";
+			font-family: "Noto Sans", sans-serif;
+			color: #3d3d3d;
+		}
+
+		h1 {
+			position: absolute;
+			margin-top: 0;
+			top: 10px;
+			right: 45px;
+			font-size: 2em;
+			font-family: "Lora", serif;
+			letter-spacing: .02em;
+			padding: 10px 15px;
+			background: rgba(256, 256, 256);
+            border: 2px solid rgb(4, 4, 4);
+			border-radius: 10px;
+			z-index: 800;
+		}
+        .legend {
+        line-height: 40px;
+        font-size: 16px;
+        width: 190px;
+        color: #333333;
+        padding: 6px 8px;
+        background: white;
+        background: rgba(255,255,255,0.5);
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        border: 2px solid rgb(4, 4, 4);
+        border-radius: 5px;
+        font-family: "Lora", serif;
+    }
+ 
+        .legend i {
+            width: 20px;
+            height: 20px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.9;
+        }
+        
+        .legend img {
+            width: 16px;
+            height: 16px;
+            margin-right: 3px;
+            float: left;
+        }
+        
+        .legend p {
+            font-size: 14px;
+            line-height: 20px;
+            margin: 0;
+        }
+
+    </style>
+    	<link href="https://fonts.googleapis.com/css?family=Titillium+Web" rel="stylesheet">
+	<script src="https://unpkg.com/leaflet@1.7.0/dist/leaflet.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-ajax/2.1.0/leaflet.ajax.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/1.3.4/chroma.min.js"></script>
+
+</head>
+<body>
+<!-- Our web map and content will go here -->
+<h1>Florida Abortion Clinics and Voter Turnout by County, 2021</h1>
+<div id="map"></div>
+<script>
+ // 1. Create a map object.
+var mymap = L.map('map', {
+    center: [28.422496, -84.112568], //note that we've centered the map to FL
+    zoom: 7, //this line adjusts the starting zoom level of the map
+    maxZoom: 18,//this line sets the maximum zoom level
+    minZoom: 7,//this line sets the minimum zoom level
+    detectRetina: true // detect whether the screen is high resolution or not.
+});
+ 
+//use min zoom to limit bounds of map!!!!!!!
+
+// 2. Add a base map.
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}').addTo(mymap);
+
+// 3. Add Airbnb GeoJSON Data
+// Null variable that will hold Airbnb data
+var abortion_clinics = null;
+// add several extra spaces here.
+// 4. build up a set of colors from colorbrewer's dark2 category
+var colors = chroma.scale('Set1').mode('lch').colors(3);
+
+// 5. dynamically append style classes to this page. The style classes will be used to shade the markers.
+// We can use a for loop to do this.
+for (i = 0; i < 3; i++) {
+    $('head').append($("<style> .marker-color-" + (i + 1).toString() + " { color: " + colors[i] + "; font-size: 18px; text-shadow: 0 0 3px #ffffff;} </style>"));
+}
+// Get GeoJSON and put it on the map when it loads
+// Make sure you have the correct directory path below
+// You can see we're also adding attribution information for our data sources
+// We will also add lines of code around this airbnb_listings object as we adjust the style of the symbols
+//Make sure and change your authorname in the attribute information
+clinic_data = L.geoJson.ajax("assets/clinics_data.geojson",{
+
+ // assign a function to the onEachFeature parameter of the airbnb_listings object.
+  // Then each (point) feature will have a popup window.
+  // The content of the popup window is the value of `property_t` from the attribute table
+  onEachFeature: function (feature, layer) {
+      layer.bindPopup(feature.properties.name);
+  },
+
+    pointToLayer: function(feature, latlng) {
+  var id = 0;
+  if (feature.properties.name == "All Women's Center") { id = 0; }
+  else if (feature.properties.name == "Planned Parenthood")  { id = 1; }
+  else { id = 2;} // All other property types from attribute table
+  return L.marker(latlng, {icon: L.divIcon({className: 'fa-solid fa-star-of-life marker-color-' + (id + 1).toString() })});
+},
+
+  attribution: '<a href="https://www.abortionfinder.org/abortion-guides-by-state/abortion-in-florida/providers"> Abortion Finder</a> | Voter Turnout Data: Florida Dept of State Division of Elections | Base Map &copy; Leaflet Providers | Map Author: Arden McKee'
+});
+// Add the Airbnbs to the map.
+clinic_data.addTo(mymap);
+
+//WORKING ON THE POLYGONS NOW!
+
+// 6. Set function for color ramp
+colors = chroma.scale('Blues').colors(6); //we'll use 5 classes of purples
+ 
+// this function manually defines your choropleth classification system
+//so you'll need to figure out which break points you'd like to use
+//based on the data distribution
+
+function setColor(TURNOUT) {
+    var id = 0;
+    if (TURNOUT > 85) { id = 5; } 
+    else if (TURNOUT > 80 && TURNOUT <= 85) { id = 4; } 
+    else if (TURNOUT > 75 && TURNOUT <= 80) { id = 3; } 
+    else if (TURNOUT > 70 &&  TURNOUT <= 75) { id = 2; } 
+    else if (TURNOUT > 65 &&  TURNOUT <= 70) { id = 1; }
+    else  { id = 0; }
+    return colors[id];
+}
+
+// 7. Set style function that sets fill color property equal to total Airbnbs
+function style(feature) {
+    return {
+        fillColor: setColor(feature.properties.TURNOUT),
+        fillOpacity: 0.8,
+        weight: 2,
+        opacity: 1,
+        color: '#b4b4b4',
+        dashArray: '4'
+    };
+}
+
+
+// 8. Add county polygons
+L.geoJson.ajax("assets/florida_votes.geojson", {
+    style: style
+}).addTo(mymap);
+
+// 9. Create Leaflet Control Object for Legend
+var legend = L.control({position: 'bottomleft'});
+ 
+// 10. Function that runs when legend is added to map
+legend.onAdd = function () {
+ 
+    // Create Div Element and Populate it with HTML
+    var div = L.DomUtil.create('div', 'legend');
+    //this line creates a title for the choropleth part of the legend
+    div.innerHTML += '<b>Voter Turnout (%)</b><br />';
+    //notice the class breaks entered at the end of the next 5 lines
+    //the colors specify the shade of purple that we used to do the polygon shading
+    div.innerHTML += '<i style="background: ' + colors[5] + '; opacity: 0.5"></i><p>Over 85%</p>';
+    div.innerHTML += '<i style="background: ' + colors[4] + '; opacity: 0.5"></i><p>80%-85%</p>';
+    div.innerHTML += '<i style="background: ' + colors[3] + '; opacity: 0.5"></i><p>75%-80%</p>';
+    div.innerHTML += '<i style="background: ' + colors[2] + '; opacity: 0.5"></i><p>70%-75%</p>'
+    div.innerHTML += '<i style="background: ' + colors[1] + '; opacity: 0.5"></i><p>65%-70%</p>';
+    
+    //this line provides the legend title for the airbnb colored symbols
+    div.innerHTML += '<hr><b>Clinic Type<b><br />';
+    //the next 3 lines call the airbnb icon along with its proper color
+    //notice the names of the Airbnb property types listed within the <p> tags at the end of the lines
+    div.innerHTML += '<i class="fa-solid fa-star-of-life marker-color-1"></i><p>All Womens Center</p>';
+    div.innerHTML += '<i class="fa-solid fa-star-of-life marker-color-2"></i><p>Planned Parenthood</p>';
+    div.innerHTML += '<i class="fa-solid fa-star-of-life marker-color-3"></i><p>other</p>';
+    // Return the Legend div containing the HTML content
+    return div;
+};
+ 
+// 11. Add a legend to map
+legend.addTo(mymap);
+
+
+// 12. Add a scale bar to map
+L.control.scale({position: 'bottomright'}).addTo(mymap);
+
+
+</script>
+</body>
+</html>
